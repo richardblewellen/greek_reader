@@ -55,7 +55,7 @@
         .btn-stop { background-color: #e74c3c; color: white; }
         .btn-clear { background-color: #95a5a6; color: white; }
         
-        /* New Sticky Dropdown Styles */
+        /* Sticky Dropdown Styles */
         .dropdown {
             position: relative;
             display: inline-block;
@@ -197,6 +197,10 @@
                 <label>Pause: <span id="delayValue">0.5</span>s</label>
                 <input type="range" id="delaySlider" min="0" max="3" step="0.5" value="0.5" oninput="document.getElementById('delayValue').innerText = Number(this.value).toFixed(1)">
             </div>
+            <div class="slider-container">
+                <label>Repeat: <span id="repeatValue">1</span>x</label>
+                <input type="range" id="repeatSlider" min="0" max="3" step="1" value="0" oninput="document.getElementById('repeatValue').innerText =[this.value]">
+            </div>
         </div>
 
         <button class="btn-play" onclick="playSelectedGroup()">Play Group</button>
@@ -215,9 +219,8 @@
     </div>
 
 <script>
-    // Notice how clean the data is without the audio links!
     const sentences = [
-        { id: 1, english: "In the seas.", greek: "ἐν ταῖς θαλάτταις." },
+{ id: 1, english: "In the seas.", greek: "ἐν ταῖς θαλάτταις." },
 { id: 2, english: "In the sea.", greek: "ἐν τῇ θαλάττῃ." },
 { id: 3, english: "In the country of the goddess.", greek: "ἐν τῇ τῆς θεᾶς χώρᾳ." },
 { id: 4, english: "In the country of the Muse.", greek: "ἐν τῇ τῆς μούσης χώρᾳ." },
@@ -1872,7 +1875,8 @@
     let currentUtterance = null;
     let playQueue = [];
     let currentQueueIndex = 0;
-    let delayTimeout = null; // Controls the pause timer
+    let currentRepeatCount = 0; // Tracks the iterations of the current sentence
+    let delayTimeout = null;
 
     // --- THE SMARTER ACCENT SCRUBBER ---
     function cleanForTTS(text) {
@@ -1920,7 +1924,6 @@
         rowsTarget.appendChild(row);
     });
 
-    // Sticky Dropdown Logic
     const batchDropdown = document.getElementById('batchDropdown');
     const batchSize = 5;
     
@@ -1942,7 +1945,6 @@
         document.getElementById("batchDropdown").classList.toggle("show");
     }
 
-    // Close the dropdown if the user clicks anywhere outside of it
     window.onclick = function(event) {
         if (!event.target.matches('.dropbtn') && !event.target.closest('.dropdown-content')) {
             const dropdowns = document.getElementsByClassName("dropdown-content");
@@ -2033,6 +2035,7 @@
         }
 
         currentQueueIndex = 0;
+        currentRepeatCount = 0; // Resets the rep counter
         playNextInQueue();
     }
 
@@ -2042,8 +2045,10 @@
         if (currentQueueIndex >= playQueue.length) {
             if (document.getElementById('loopToggle').checked) {
                 currentQueueIndex = 0; 
+                currentRepeatCount = 0;
             } else {
-                clearSelection();
+                // Notice the clearSelection() command is gone here. 
+                // The blue highlights will remain until you manually clear them.
                 return; 
             }
         }
@@ -2053,7 +2058,10 @@
         
         if (targetRow) {
             targetRow.classList.add('active-playing');
-            targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Only smoothly scrolls into view on the first repetition to avoid screen jitter
+            if (currentRepeatCount === 0) {
+                targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }
 
         currentUtterance = new SpeechSynthesisUtterance(cleanForTTS(currentItem.greek));
@@ -2061,8 +2069,16 @@
         currentUtterance.rate = getPlaybackRate();
         
         currentUtterance.onend = () => {
-            currentQueueIndex++;
-            // Grab the pause time from the slider and convert to milliseconds
+            // Retrieves the selected multiplier (1, 2, 3, or 5)
+            const targetRepeats =[document.getElementById('repeatSlider').value];
+            currentRepeatCount++;
+
+            // Evaluate if we should repeat or move to the next index
+            if (currentRepeatCount >= targetRepeats) {
+                currentQueueIndex++;
+                currentRepeatCount = 0; 
+            }
+
             const pauseTime = parseFloat(document.getElementById('delaySlider').value) * 1000;
             delayTimeout = setTimeout(() => {
                 playNextInQueue();
@@ -2074,7 +2090,7 @@
 
     function stopPlayback() {
         window.speechSynthesis.cancel();
-        clearTimeout(delayTimeout); // Kills the pause timer instantly
+        clearTimeout(delayTimeout); 
         clearPlayingHighlight();
     }
 
