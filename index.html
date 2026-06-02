@@ -170,15 +170,15 @@
     let currentAudio = null;
     let playQueue = [];
     let currentQueueIndex = 0;
-    let isDragging = false;
 
     const rowsTarget = document.getElementById('rowsTarget');
+    
+    // Generate the rows
     sentences.forEach(item => {
         const row = document.createElement('div');
         row.className = 'row';
         row.id = `row-${item.id}`;
         
-        // Structure is now stacked within a single text-stack container
         row.innerHTML = `
             <div class="num-cell">${item.id}</div>
             <div class="text-stack">
@@ -187,27 +187,19 @@
             </div>
         `;
         
-        row.addEventListener('mousedown', (e) => {
+        // The New Touch/Mouse Friendly Selection
+        row.addEventListener('click', (e) => {
+            // If they clicked the Greek text, ignore the selection so the audio can play
             if (e.target.classList.contains('el-cell')) return;
             
-            isDragging = true;
-            document.querySelectorAll('.row').forEach(r => r.classList.remove('selected-row'));
-            row.classList.add('selected-row');
-        });
-
-        row.addEventListener('mouseenter', () => {
-            if (isDragging) {
-                row.classList.add('selected-row');
-            }
+            // Otherwise, toggle the blue highlight on or off
+            row.classList.toggle('selected-row');
         });
 
         rowsTarget.appendChild(row);
     });
 
-    window.addEventListener('mouseup', () => {
-        isDragging = false;
-    });
-
+    // Play a single sentence
     function playSingle(audioUrl, id) {
         stopPlayback();
         clearPlayingHighlight();
@@ -218,10 +210,12 @@
         currentAudio.onended = () => clearPlayingHighlight();
     }
 
+    // Play the selected group
     function playSelectedGroup() {
         stopPlayback();
         clearPlayingHighlight();
         
+        // Find all rows that have the blue highlight
         const selectedRows = document.querySelectorAll('.selected-row');
         playQueue = [];
         
@@ -232,7 +226,7 @@
         });
 
         if (playQueue.length === 0) {
-            alert("Please click and drag down the list to select sentences first.");
+            alert("Please tap or click sentences to select them first.");
             return;
         }
 
@@ -240,13 +234,16 @@
         playNextInQueue();
     }
 
+    // Sequence the group audio
     function playNextInQueue() {
         clearPlayingHighlight();
 
         if (currentQueueIndex >= playQueue.length) {
             if (document.getElementById('loopToggle').checked) {
-                currentQueueIndex = 0; 
+                currentQueueIndex = 0; // Start over if loop is checked
             } else {
+                // Clear the blue selections when finished playing so it's ready for a new group
+                document.querySelectorAll('.row').forEach(r => r.classList.remove('selected-row'));
                 return; 
             }
         }
@@ -263,6 +260,7 @@
         currentAudio.play();
     }
 
+    // Stop all audio
     function stopPlayback() {
         if (currentAudio) {
             currentAudio.pause();
@@ -271,12 +269,14 @@
         clearPlayingHighlight();
     }
 
+    // Remove the green playing highlight
     function clearPlayingHighlight() {
         document.querySelectorAll('.row').forEach(row => {
             row.classList.remove('active-playing');
         });
     }
 
+    // Toggle languages on and off
     function toggleColumn(language) {
         const container = document.getElementById('listContainer');
         if (language === 'english') {
