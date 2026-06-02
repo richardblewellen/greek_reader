@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Greek Reader</title>
+    <title>First Greek Reader</title>
     <style>
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            max-width: 900px;
+            max-width: 800px; /* Slightly narrower since we stacked the text */
             margin: 0 auto;
             padding: 20px;
             background-color: #f9f9f9;
@@ -17,6 +17,7 @@
             text-align: center;
             color: #2c3e50;
         }
+        
         /* Controls Toolbar */
         .toolbar {
             display: flex;
@@ -60,9 +61,11 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             overflow: hidden;
         }
+        
+        /* Stacked Grid Layout */
         .grid-header {
             display: grid;
-            grid-template-columns: 50px 40px 1fr 1fr;
+            grid-template-columns: 60px 1fr;
             gap: 15px;
             padding: 12px 15px;
             background: #2c3e50;
@@ -71,45 +74,66 @@
         }
         .row {
             display: grid;
-            grid-template-columns: 50px 40px 1fr 1fr;
+            grid-template-columns: 60px 1fr;
             gap: 15px;
             padding: 15px;
             align-items: center;
             border-bottom: 1px solid #eee;
-            transition: background-color 0.2s;
+            transition: background-color 0.1s;
+            user-select: none; 
+            cursor: pointer;
         }
+        
+        /* Selection States */
         .row:hover { background-color: #f5f9fc; }
+        .row.selected-row { background-color: #d6eaf8; border-left: 4px solid #3498db; }
         .row.active-playing { background-color: #e8f8f5; border-left: 4px solid #2ecc71; }
         
-        /* Column Visibility Toggles via Parent Classes */
-        .hide-english .english-col, .hide-english .en-cell { display: none; }
-        .hide-greek .greek-col, .hide-greek .el-cell { display: none; }
-        
-        /* Dynamic Grid adjustment when columns are hidden */
-        .list-container.hide-english .row, .list-container.hide-english .grid-header { grid-template-columns: 50px 40px 0fr 1fr; gap: 0px; }
-        .list-container.hide-greek .row, .list-container.hide-greek .grid-header { grid-template-columns: 50px 40px 1fr 0fr; gap: 0px; }
-        .list-container.hide-english.hide-greek .row, .list-container.hide-greek.hide-english .grid-header { grid-template-columns: 50px 40px 0fr 0fr; }
-
-        .num-cell { color: #7f8c8d; font-weight: bold; text-align: center; }
-        .en-cell { font-size: 1.05rem; line-height: 1.4; }
-        .el-cell { 
-            font-size: 1.2rem; 
-            line-height: 1.4; 
-            color: #2980b9; 
-            cursor: pointer; 
-            user-select: none;
-            padding: 5px;
-            border-radius: 4px;
+        /* Text Stack Layout */
+        .text-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
-        .el-cell:hover { background-color: #ebf5fb; text-decoration: underline; }
+
+        /* The visibility: hidden trick preserves physical space when toggled */
+        .hide-english .en-cell { visibility: hidden; }
+        .hide-greek .el-cell { visibility: hidden; }
+
+        /* Typography */
+        .num-cell { 
+            color: #7f8c8d; 
+            font-weight: bold; 
+            text-align: center; 
+            pointer-events: none; 
+        }
         
-        .checkbox-cell { text-align: center; }
-        .checkbox-cell input { width: 18px; height: 18px; cursor: pointer; }
+        .el-cell { 
+            font-size: 1.25rem; 
+            line-height: 1.4; 
+            color: #333; /* Black text */
+            padding: 4px;
+            border-radius: 4px;
+            pointer-events: auto; /* Allows clicking */
+        }
+        .el-cell:hover { 
+            background-color: #f0f0f0; 
+            text-decoration: underline; 
+            text-decoration-color: #ccc; 
+        }
+        
+        .en-cell { 
+            font-size: 1.05rem; 
+            line-height: 1.4; 
+            color: #333; /* Black text */
+            padding: 0 4px;
+            pointer-events: none; 
+        }
     </style>
 </head>
 <body>
 
-    <h1>Interactive Word & Sentence List</h1>
+    <h1>First Greek Reader</h1>
 
     <div class="toolbar">
         <button id="toggleEn" class="btn-toggle" onclick="toggleColumn('english')">English ON</button>
@@ -123,16 +147,13 @@
 
     <div id="listContainer" class="list-container">
         <div class="grid-header">
-            <div style="text-align:center;">Loop</div>
             <div style="text-align:center;">#</div>
-            <div class="english-col">English</div>
-            <div class="greek-col">Ancient Greek</div>
+            <div>Sentences</div>
         </div>
         <div id="rowsTarget"></div>
     </div>
 
 <script>
-    // 1. Data Array pointing to your local files
     const sentences = [
         { id: 1, english: "In the seas.", greek: "ἐν ταῖς θαλάτταις.", audio: "audio/0001.mp3" },
         { id: 2, english: "In the sea.", greek: "ἐν τῇ θαλάττῃ.", audio: "audio/0002.mp3" },
@@ -149,49 +170,69 @@
     let currentAudio = null;
     let playQueue = [];
     let currentQueueIndex = 0;
+    let isDragging = false;
 
-    // 2. Generate rows dynamically
     const rowsTarget = document.getElementById('rowsTarget');
     sentences.forEach(item => {
         const row = document.createElement('div');
         row.className = 'row';
         row.id = `row-${item.id}`;
+        
+        // Structure is now stacked within a single text-stack container
         row.innerHTML = `
-            <div class="checkbox-cell"><input type="checkbox" class="loop-pkg" data-id="${item.id}"></div>
             <div class="num-cell">${item.id}</div>
-            <div class="en-cell">${item.english}</div>
-            <div class="el-cell" onclick="playSingle('${item.audio}', ${item.id})">${item.greek}</div>
+            <div class="text-stack">
+                <div class="el-cell" onclick="playSingle('${item.audio}', ${item.id})">${item.greek}</div>
+                <div class="en-cell">${item.english}</div>
+            </div>
         `;
+        
+        row.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('el-cell')) return;
+            
+            isDragging = true;
+            document.querySelectorAll('.row').forEach(r => r.classList.remove('selected-row'));
+            row.classList.add('selected-row');
+        });
+
+        row.addEventListener('mouseenter', () => {
+            if (isDragging) {
+                row.classList.add('selected-row');
+            }
+        });
+
         rowsTarget.appendChild(row);
     });
 
-    // 3. Single Play Mechanism
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
     function playSingle(audioUrl, id) {
         stopPlayback();
-        clearHighlights();
+        clearPlayingHighlight();
         document.getElementById(`row-${id}`).classList.add('active-playing');
         
         currentAudio = new Audio(audioUrl);
         currentAudio.play();
-        currentAudio.onended = () => clearHighlights();
+        currentAudio.onended = () => clearPlayingHighlight();
     }
 
-    // 4. Group and Loop Playback Engine
     function playSelectedGroup() {
         stopPlayback();
-        clearHighlights();
+        clearPlayingHighlight();
         
-        // Find all checked boxes and build a queue
-        const checkboxes = document.querySelectorAll('.loop-pkg:checked');
+        const selectedRows = document.querySelectorAll('.selected-row');
         playQueue = [];
-        checkboxes.forEach(cb => {
-            const id = parseInt(cb.getAttribute('data-id'));
+        
+        selectedRows.forEach(row => {
+            const id = parseInt(row.id.replace('row-', ''));
             const found = sentences.find(s => s.id === id);
             if (found) playQueue.push(found);
         });
 
         if (playQueue.length === 0) {
-            alert("Please check at least one box to create a group to play.");
+            alert("Please click and drag down the list to select sentences first.");
             return;
         }
 
@@ -200,15 +241,13 @@
     }
 
     function playNextInQueue() {
-        clearHighlights();
+        clearPlayingHighlight();
 
-        // Handle loop verification or end of list
         if (currentQueueIndex >= playQueue.length) {
-            const isLoopEnabled = document.getElementById('loopToggle').checked;
-            if (isLoopEnabled) {
-                currentQueueIndex = 0; // Reset to beginning
+            if (document.getElementById('loopToggle').checked) {
+                currentQueueIndex = 0; 
             } else {
-                return; // Stop playback completely
+                return; 
             }
         }
 
@@ -229,16 +268,15 @@
             currentAudio.pause();
             currentAudio = null;
         }
-        clearHighlights();
+        clearPlayingHighlight();
     }
 
-    function clearHighlights() {
+    function clearPlayingHighlight() {
         document.querySelectorAll('.row').forEach(row => {
             row.classList.remove('active-playing');
         });
     }
 
-    // 5. Visibility Column Toggles
     function toggleColumn(language) {
         const container = document.getElementById('listContainer');
         if (language === 'english') {
