@@ -55,27 +55,70 @@
         .btn-stop { background-color: #e74c3c; color: white; }
         .btn-clear { background-color: #95a5a6; color: white; }
         
-        .batch-select {
-            padding: 8px 12px;
-            border-radius: 4px;
-            border: 1px solid #bdc3c7;
-            font-weight: 600;
-            color: #2c3e50;
-            cursor: pointer;
+        /* New Sticky Dropdown Styles */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropbtn {
             background-color: #fcfcfc;
+            color: #2c3e50;
+            border: 1px solid #bdc3c7;
+            padding: 8px 12px;
+        }
+        .dropbtn:hover { border-color: #3498db; }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #fff;
+            min-width: 140px;
+            max-height: 250px;
+            overflow-y: auto;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1);
+            z-index: 1000;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            padding: 5px;
+            gap: 2px;
+        }
+        .dropdown-content.show {
+            display: flex;
+            flex-direction: column;
+        }
+        .batch-item {
+            padding: 8px;
+            background: none;
+            border: 1px solid transparent;
+            text-align: center;
+            border-radius: 4px;
+            font-weight: 600;
+            color: #333;
+        }
+        .batch-item:hover { background-color: #f0f0f0; }
+        .batch-item.active-batch {
+            background-color: #d6eaf8;
+            color: #2980b9;
+            border-color: #3498db;
         }
         
-        /* New Speed Slider Layout */
-        .slider-container {
+        /* Sliders Layout */
+        .slider-group {
             display: flex;
-            align-items: center;
+            flex-direction: column;
             gap: 5px;
-            font-weight: bold;
-            font-size: 0.9rem;
             background: #f1f2f6;
             padding: 6px 12px;
             border-radius: 4px;
         }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .slider-container input { width: 80px; }
         
         .loop-control {
             display: flex;
@@ -92,7 +135,6 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             overflow: hidden;
         }
-        
         .grid-header {
             display: grid;
             grid-template-columns: 60px 1fr;
@@ -138,14 +180,23 @@
         <button id="toggleEn" class="btn-toggle" onclick="toggleColumn('english')">English ON</button>
         <button id="toggleEl" class="btn-toggle" onclick="toggleColumn('greek')">Greek ON</button>
         
-        <select id="batchSelect" class="batch-select" onchange="loadBatch()">
-            <option value="">Add a batch...</option>
-        </select>
+        <div class="dropdown">
+            <button class="dropbtn" onclick="toggleDropdown()">Batches ▾</button>
+            <div id="batchDropdown" class="dropdown-content">
+                </div>
+        </div>
+        
         <button class="btn-clear" onclick="clearSelection()">Clear Selection</button>
 
-        <div class="slider-container">
-            <label for="speedSlider">Speed: <span id="speedValue">1.0</span>x</label>
-            <input type="range" id="speedSlider" min="0.5" max="1.5" step="0.1" value="1.0" oninput="document.getElementById('speedValue').innerText = this.value">
+        <div class="slider-group">
+            <div class="slider-container">
+                <label>Speed: <span id="speedValue">1.0</span>x</label>
+                <input type="range" id="speedSlider" min="0.5" max="1.5" step="0.1" value="1.0" oninput="document.getElementById('speedValue').innerText = Number(this.value).toFixed(1)">
+            </div>
+            <div class="slider-container">
+                <label>Pause: <span id="delayValue">0.5</span>s</label>
+                <input type="range" id="delaySlider" min="0" max="3" step="0.5" value="0.5" oninput="document.getElementById('delayValue').innerText = Number(this.value).toFixed(1)">
+            </div>
         </div>
 
         <button class="btn-play" onclick="playSelectedGroup()">Play Group</button>
@@ -1821,6 +1872,7 @@
     let currentUtterance = null;
     let playQueue = [];
     let currentQueueIndex = 0;
+    let delayTimeout = null; // Controls the pause timer
 
     // --- THE SMARTER ACCENT SCRUBBER ---
     function cleanForTTS(text) {
@@ -1846,7 +1898,7 @@
     }
     // -----------------------------------
 
-    const rowsTarget = document.getElementById('rowsTarget');
+   const rowsTarget = document.getElementById('rowsTarget');
     sentences.forEach(item => {
         const row = document.createElement('div');
         row.className = 'row';
@@ -1868,53 +1920,80 @@
         rowsTarget.appendChild(row);
     });
 
-    const batchSelect = document.getElementById('batchSelect');
+    // Sticky Dropdown Logic
+    const batchDropdown = document.getElementById('batchDropdown');
     const batchSize = 5;
     
     for (let i = 0; i < sentences.length; i += batchSize) {
         const start = i + 1;
         const end = Math.min(i + batchSize, sentences.length);
-        const option = document.createElement('option');
+        const btn = document.createElement('button');
+        btn.className = 'batch-item';
         
         const startPad = String(start).padStart(4, '0');
         const endPad = String(end).padStart(4, '0');
         
-        option.value = `${start}-${end}`;
-        option.text = `${startPad} - ${endPad}`;
-        batchSelect.appendChild(option);
+        btn.innerText = `${startPad} - ${endPad}`;
+        btn.onclick = () => toggleBatch(start, end, btn);
+        batchDropdown.appendChild(btn);
     }
 
-    // Updated loadBatch to append instead of replace
-    function loadBatch() {
-        const val = batchSelect.value;
-        if (!val) return;
+    function toggleDropdown() {
+        document.getElementById("batchDropdown").classList.toggle("show");
+    }
 
-        const [start, end] = val.split('-').map(Number);
+    // Close the dropdown if the user clicks anywhere outside of it
+    window.onclick = function(event) {
+        if (!event.target.matches('.dropbtn') && !event.target.closest('.dropdown-content')) {
+            const dropdowns = document.getElementsByClassName("dropdown-content");
+            for (let i = 0; i < dropdowns.length; i++) {
+                if (dropdowns[i].classList.contains('show')) {
+                    dropdowns[i].classList.remove('show');
+                }
+            }
+        }
+    }
+
+    function toggleBatch(start, end, btnElement) {
+        let allSelected = true;
         for (let i = start; i <= end; i++) {
             const targetRow = document.getElementById(`row-${i}`);
-            if (targetRow) {
-                targetRow.classList.add('selected-row');
+            if (targetRow && !targetRow.classList.contains('selected-row')) {
+                allSelected = false;
+                break;
             }
         }
 
-        const firstRow = document.getElementById(`row-${start}`);
-        if (firstRow) {
-            setTimeout(() => {
-                const y = firstRow.getBoundingClientRect().top + window.scrollY - 100;
-                window.scrollTo({ top: y, behavior: 'smooth' });
-            }, 50);
+        for (let i = start; i <= end; i++) {
+            const targetRow = document.getElementById(`row-${i}`);
+            if (targetRow) {
+                if (allSelected) {
+                    targetRow.classList.remove('selected-row');
+                } else {
+                    targetRow.classList.add('selected-row');
+                }
+            }
         }
 
-        // Reset the dropdown text to "Add a batch..."
-        batchSelect.value = "";
+        if (allSelected) {
+            btnElement.classList.remove('active-batch');
+        } else {
+            btnElement.classList.add('active-batch');
+            const firstRow = document.getElementById(`row-${start}`);
+            if (firstRow) {
+                setTimeout(() => {
+                    const y = firstRow.getBoundingClientRect().top + window.scrollY - 150;
+                    window.scrollTo({ top: y, behavior: 'smooth' });
+                }, 50);
+            }
+        }
     }
 
-    // New Clear Selection function
     function clearSelection() {
         document.querySelectorAll('.row').forEach(r => r.classList.remove('selected-row'));
+        document.querySelectorAll('.batch-item').forEach(b => b.classList.remove('active-batch'));
     }
 
-    // New Speed getter
     function getPlaybackRate() {
         return parseFloat(document.getElementById('speedSlider').value);
     }
@@ -1925,8 +2004,6 @@
         
         const row = document.getElementById(`row-${id}`);
         row.classList.add('active-playing');
-        
-        // Auto-center single plays
         row.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
         currentUtterance = new SpeechSynthesisUtterance(cleanForTTS(text));
@@ -1966,7 +2043,7 @@
             if (document.getElementById('loopToggle').checked) {
                 currentQueueIndex = 0; 
             } else {
-                document.querySelectorAll('.row').forEach(r => r.classList.remove('selected-row'));
+                clearSelection();
                 return; 
             }
         }
@@ -1976,7 +2053,6 @@
         
         if (targetRow) {
             targetRow.classList.add('active-playing');
-            // Auto-center during group play
             targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
@@ -1986,7 +2062,11 @@
         
         currentUtterance.onend = () => {
             currentQueueIndex++;
-            playNextInQueue();
+            // Grab the pause time from the slider and convert to milliseconds
+            const pauseTime = parseFloat(document.getElementById('delaySlider').value) * 1000;
+            delayTimeout = setTimeout(() => {
+                playNextInQueue();
+            }, pauseTime);
         };
         
         window.speechSynthesis.speak(currentUtterance);
@@ -1994,6 +2074,7 @@
 
     function stopPlayback() {
         window.speechSynthesis.cancel();
+        clearTimeout(delayTimeout); // Kills the pause timer instantly
         clearPlayingHighlight();
     }
 
