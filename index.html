@@ -1837,13 +1837,24 @@
     let playQueue = [];
     let currentQueueIndex = 0;
 
+    // --- THE SMARTER ACCENT SCRUBBER ---
+    function cleanForTTS(text) {
+        return text.normalize("NFD")
+            // 1. Convert Grave (\u0300) and Circumflex (\u0342 or \u0303) to Acute (\u0301)
+            .replace(/[\u0300\u0342\u0303]/g, '\u0301')
+            // 2. Strip Breathings (\u0313, \u0314) and Iota Subscripts (\u0345)
+            .replace(/[\u0313\u0314\u0345]/g, '')
+            // 3. Re-combine back into standard letters for the robot voice
+            .normalize("NFC");
+    }
+    // -------------------------------
+
     const rowsTarget = document.getElementById('rowsTarget');
     sentences.forEach(item => {
         const row = document.createElement('div');
         row.className = 'row';
         row.id = `row-${item.id}`;
         
-        // We now pass the raw Greek text to the playSingle function instead of a URL
         row.innerHTML = `
             <div class="num-cell">${item.id}</div>
             <div class="text-stack">
@@ -1899,15 +1910,14 @@
         }
     }
 
-    // New Text-to-Speech Engine
     function playSingle(text, id) {
         stopPlayback();
         clearPlayingHighlight();
         document.getElementById(`row-${id}`).classList.add('active-playing');
         
-        currentUtterance = new SpeechSynthesisUtterance(text);
-        currentUtterance.lang = 'el-GR'; // Forces Modern Greek pronunciation
-        // currentUtterance.rate = 0.8; // Uncomment and adjust this number if the voice is too fast
+        // Pass the text through the scrubber before playing
+        currentUtterance = new SpeechSynthesisUtterance(cleanForTTS(text));
+        currentUtterance.lang = 'el-GR'; 
         
         currentUtterance.onend = () => clearPlayingHighlight();
         window.speechSynthesis.speak(currentUtterance);
@@ -1951,7 +1961,8 @@
         const targetRow = document.getElementById(`row-${currentItem.id}`);
         if (targetRow) targetRow.classList.add('active-playing');
 
-        currentUtterance = new SpeechSynthesisUtterance(currentItem.greek);
+        // Pass the queue text through the scrubber before playing
+        currentUtterance = new SpeechSynthesisUtterance(cleanForTTS(currentItem.greek));
         currentUtterance.lang = 'el-GR';
         
         currentUtterance.onend = () => {
