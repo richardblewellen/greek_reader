@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>First Greek Sentences</title>
+    <title>First Greek Reader</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -174,7 +174,7 @@
 </head>
 <body>
 
-    <h1>First Greek Sentences</h1>
+    <h1>First Greek Reader</h1>
 
     <div class="toolbar">
         <button id="toggleEn" class="btn-toggle" onclick="toggleColumn('english')">English ON</button>
@@ -199,7 +199,7 @@
             </div>
             <div class="slider-container">
                 <label>Repeat: <span id="repeatValue">1</span>x</label>
-                <input type="range" id="repeatSlider" min="0" max="3" step="1" value="0" oninput="document.getElementById('repeatValue').innerText =[this.value]">
+                <input type="range" id="repeatSlider" min="1" max="4" step="1" value="1" oninput="updateRepeatLabel()">
             </div>
         </div>
 
@@ -1878,6 +1878,13 @@
     let currentRepeatCount = 0; // Tracks the iterations of the current sentence
     let delayTimeout = null;
 
+    // Translates the slider's 4 physical positions into your exact repetition multipliers
+    function updateRepeatLabel() {
+        const val = parseInt(document.getElementById('repeatSlider').value);
+        const options =; // Index 1 is 1x, Index 4 is 5x.
+        document.getElementById('repeatValue').innerText = options[val];
+    }
+
     // --- THE SMARTER ACCENT SCRUBBER ---
     function cleanForTTS(text) {
         let cleaned = text.normalize("NFD")
@@ -1902,7 +1909,7 @@
     }
     // -----------------------------------
 
-   const rowsTarget = document.getElementById('rowsTarget');
+  const rowsTarget = document.getElementById('rowsTarget');
     sentences.forEach(item => {
         const row = document.createElement('div');
         row.className = 'row';
@@ -2035,7 +2042,7 @@
         }
 
         currentQueueIndex = 0;
-        currentRepeatCount = 0; // Resets the rep counter
+        currentRepeatCount = 0; 
         playNextInQueue();
     }
 
@@ -2047,8 +2054,6 @@
                 currentQueueIndex = 0; 
                 currentRepeatCount = 0;
             } else {
-                // Notice the clearSelection() command is gone here. 
-                // The blue highlights will remain until you manually clear them.
                 return; 
             }
         }
@@ -2058,7 +2063,6 @@
         
         if (targetRow) {
             targetRow.classList.add('active-playing');
-            // Only smoothly scrolls into view on the first repetition to avoid screen jitter
             if (currentRepeatCount === 0) {
                 targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
@@ -2069,11 +2073,11 @@
         currentUtterance.rate = getPlaybackRate();
         
         currentUtterance.onend = () => {
-            // Retrieves the selected multiplier (1, 2, 3, or 5)
-            const targetRepeats =[document.getElementById('repeatSlider').value];
+            const sliderVal = parseInt(document.getElementById('repeatSlider').value);
+            const targetRepeats =[sliderVal];
+            
             currentRepeatCount++;
 
-            // Evaluate if we should repeat or move to the next index
             if (currentRepeatCount >= targetRepeats) {
                 currentQueueIndex++;
                 currentRepeatCount = 0; 
