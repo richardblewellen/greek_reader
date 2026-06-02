@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Greek Sentences</title>
+    <title>First Greek Sentences</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,7 +11,6 @@
 
     <style>
         body {
-            /* Applied Alegreya to the whole page */
             font-family: 'Alegreya', serif; 
             max-width: 800px; 
             margin: 0 auto;
@@ -31,6 +30,7 @@
             flex-wrap: wrap;
             gap: 10px;
             justify-content: center;
+            align-items: center;
             background: #fff;
             padding: 15px;
             border-radius: 8px;
@@ -39,11 +39,10 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            /* Using a sans-serif for the interface buttons so they stand out from the text */
             font-family: system-ui, sans-serif; 
         }
         button {
-            padding: 10px 16px;
+            padding: 8px 14px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -54,10 +53,10 @@
         .btn-toggle.off { background-color: #bdc3c7; }
         .btn-play { background-color: #2ecc71; color: white; }
         .btn-stop { background-color: #e74c3c; color: white; }
+        .btn-clear { background-color: #95a5a6; color: white; }
         
-        /* Dropdown Style */
         .batch-select {
-            padding: 9px 12px;
+            padding: 8px 12px;
             border-radius: 4px;
             border: 1px solid #bdc3c7;
             font-weight: 600;
@@ -65,14 +64,25 @@
             cursor: pointer;
             background-color: #fcfcfc;
         }
-        .batch-select:hover { border-color: #3498db; }
+        
+        /* New Speed Slider Layout */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            background: #f1f2f6;
+            padding: 6px 12px;
+            border-radius: 4px;
+        }
         
         .loop-control {
             display: flex;
             align-items: center;
             gap: 5px;
             font-weight: bold;
-            margin-left: 10px;
+            margin-left: 5px;
         }
 
         /* List Layout */
@@ -83,7 +93,6 @@
             overflow: hidden;
         }
         
-        /* Stacked Grid Layout */
         .grid-header {
             display: grid;
             grid-template-columns: 60px 1fr;
@@ -107,61 +116,37 @@
             -webkit-tap-highlight-color: transparent; 
         }
         
-        /* Selection States */
         .row:hover { background-color: #f5f9fc; }
         .row.selected-row { background-color: #d6eaf8; border-left: 4px solid #3498db; }
         .row.active-playing { background-color: #e8f8f5; border-left: 4px solid #2ecc71; }
         
-        /* Text Stack Layout */
-        .text-stack {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
+        .text-stack { display: flex; flex-direction: column; gap: 6px; }
         .hide-english .en-cell { visibility: hidden; }
         .hide-greek .el-cell { visibility: hidden; }
 
-        /* Typography */
-        .num-cell { 
-            color: #7f8c8d; 
-            font-weight: bold; 
-            text-align: center; 
-            font-family: system-ui, sans-serif;
-        }
-        
-        .el-cell { 
-            font-size: 1.5rem; /* Slightly larger to show off the new font */
-            line-height: 1.4; 
-            color: #333; 
-            padding: 4px;
-            border-radius: 4px;
-        }
-        .el-cell:hover { 
-            background-color: #f0f0f0; 
-            text-decoration: underline; 
-            text-decoration-color: #ccc; 
-        }
-        
-        .en-cell { 
-            font-size: 1.25rem; 
-            line-height: 1.4; 
-            color: #333; 
-            padding: 0 4px;
-        }
+        .num-cell { color: #7f8c8d; font-weight: bold; text-align: center; font-family: system-ui, sans-serif; }
+        .el-cell { font-size: 1.5rem; line-height: 1.4; color: #333; padding: 4px; border-radius: 4px; }
+        .el-cell:hover { background-color: #f0f0f0; text-decoration: underline; text-decoration-color: #ccc; }
+        .en-cell { font-size: 1.25rem; line-height: 1.4; color: #333; padding: 0 4px; }
     </style>
 </head>
 <body>
 
-    <h1>Greek Sentences</h1>
+    <h1>First Greek Sentences</h1>
 
     <div class="toolbar">
         <button id="toggleEn" class="btn-toggle" onclick="toggleColumn('english')">English ON</button>
         <button id="toggleEl" class="btn-toggle" onclick="toggleColumn('greek')">Greek ON</button>
         
         <select id="batchSelect" class="batch-select" onchange="loadBatch()">
-            <option value="">Select a batch...</option>
+            <option value="">Add a batch...</option>
         </select>
+        <button class="btn-clear" onclick="clearSelection()">Clear Selection</button>
+
+        <div class="slider-container">
+            <label for="speedSlider">Speed: <span id="speedValue">1.0</span>x</label>
+            <input type="range" id="speedSlider" min="0.5" max="1.5" step="0.1" value="1.0" oninput="document.getElementById('speedValue').innerText = this.value">
+        </div>
 
         <button class="btn-play" onclick="playSelectedGroup()">Play Group</button>
         <button class="btn-stop" onclick="stopPlayback()">Stop</button>
@@ -1846,7 +1831,7 @@
             .replace(/(^|[\s,;:'"(\[·-])([άέήίόύώΆΈΉΊΌΎΏ])(?=[\s,;:.!?"'\)\]·-]|$)/g, (match, prefix, letter) => {
                 return prefix + letter.normalize("NFD").replace(/\u0301/g, '').normalize("NFC");
             });
-
+        
         // --- CUSTOM PHONETIC DICTIONARY ---
         // If the TTS butchers an ancient word, add a rule here to spell it phonetically.
         // It won't change the text on the screen, only what the robot reads.
@@ -1899,11 +1884,10 @@
         batchSelect.appendChild(option);
     }
 
+    // Updated loadBatch to append instead of replace
     function loadBatch() {
         const val = batchSelect.value;
         if (!val) return;
-
-        document.querySelectorAll('.row').forEach(r => r.classList.remove('selected-row'));
 
         const [start, end] = val.split('-').map(Number);
         for (let i = start; i <= end; i++) {
@@ -1920,16 +1904,34 @@
                 window.scrollTo({ top: y, behavior: 'smooth' });
             }, 50);
         }
+
+        // Reset the dropdown text to "Add a batch..."
+        batchSelect.value = "";
+    }
+
+    // New Clear Selection function
+    function clearSelection() {
+        document.querySelectorAll('.row').forEach(r => r.classList.remove('selected-row'));
+    }
+
+    // New Speed getter
+    function getPlaybackRate() {
+        return parseFloat(document.getElementById('speedSlider').value);
     }
 
     function playSingle(text, id) {
         stopPlayback();
         clearPlayingHighlight();
-        document.getElementById(`row-${id}`).classList.add('active-playing');
         
-        // Pass the text through the scrubber before playing
+        const row = document.getElementById(`row-${id}`);
+        row.classList.add('active-playing');
+        
+        // Auto-center single plays
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
         currentUtterance = new SpeechSynthesisUtterance(cleanForTTS(text));
         currentUtterance.lang = 'el-GR'; 
+        currentUtterance.rate = getPlaybackRate();
         
         currentUtterance.onend = () => clearPlayingHighlight();
         window.speechSynthesis.speak(currentUtterance);
@@ -1971,11 +1973,16 @@
 
         const currentItem = playQueue[currentQueueIndex];
         const targetRow = document.getElementById(`row-${currentItem.id}`);
-        if (targetRow) targetRow.classList.add('active-playing');
+        
+        if (targetRow) {
+            targetRow.classList.add('active-playing');
+            // Auto-center during group play
+            targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
 
-        // Pass the queue text through the scrubber before playing
         currentUtterance = new SpeechSynthesisUtterance(cleanForTTS(currentItem.greek));
         currentUtterance.lang = 'el-GR';
+        currentUtterance.rate = getPlaybackRate();
         
         currentUtterance.onend = () => {
             currentQueueIndex++;
