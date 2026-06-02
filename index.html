@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>First Greek Reader</title>
+    <title>First Greek Sentences</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -174,7 +174,7 @@
 </head>
 <body>
 
-    <h1>First Greek Reader</h1>
+    <h1>First Greek Sentences</h1>
 
     <div class="toolbar">
         <button id="toggleEn" class="btn-toggle" onclick="toggleColumn('english')">English ON</button>
@@ -182,8 +182,7 @@
         
         <div class="dropdown">
             <button class="dropbtn" onclick="toggleDropdown()">Batches ▾</button>
-            <div id="batchDropdown" class="dropdown-content">
-                </div>
+            <div id="batchDropdown" class="dropdown-content"></div>
         </div>
         
         <button class="btn-clear" onclick="clearSelection()">Clear Selection</button>
@@ -1878,11 +1877,14 @@
     let currentRepeatCount = 0; // Tracks the iterations of the current sentence
     let delayTimeout = null;
 
+   // Define the repeat mapping globally so both functions can use it
+    // Index 0 is a placeholder, Index 1=1x, Index 2=2x, Index 3=3x, Index 4=5x
+    const REPEAT_OPTIONS =; 
+
     // Translates the slider's 4 physical positions into your exact repetition multipliers
     function updateRepeatLabel() {
         const val = parseInt(document.getElementById('repeatSlider').value);
-        const options =; // Index 1 is 1x, Index 4 is 5x.
-        document.getElementById('repeatValue').innerText = options[val];
+        document.getElementById('repeatValue').innerText = REPEAT_OPTIONS[val];
     }
 
     // --- THE SMARTER ACCENT SCRUBBER ---
@@ -1952,8 +1954,7 @@
         document.getElementById("batchDropdown").classList.toggle("show");
     }
 
-   // Use the modern Event Listener to safely close the dropdown
-    window.addEventListener('click', (event) => {
+    window.onclick = function(event) {
         if (!event.target.matches('.dropbtn') && !event.target.closest('.dropdown-content')) {
             const dropdowns = document.getElementsByClassName("dropdown-content");
             for (let i = 0; i < dropdowns.length; i++) {
@@ -1962,8 +1963,8 @@
                 }
             }
         }
-    });
-    
+    }
+
     function toggleBatch(start, end, btnElement) {
         let allSelected = true;
         for (let i = start; i <= end; i++) {
@@ -2075,7 +2076,8 @@
         
         currentUtterance.onend = () => {
             const sliderVal = parseInt(document.getElementById('repeatSlider').value);
-            const targetRepeats =[sliderVal];
+            // Grab the actual multiplier from our global options array
+            const targetRepeats = REPEAT_OPTIONS[sliderVal]; 
             
             currentRepeatCount++;
 
