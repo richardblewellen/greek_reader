@@ -1850,9 +1850,12 @@
         // --- CUSTOM PHONETIC DICTIONARY ---
         // If the TTS butchers an ancient word, add a rule here to spell it phonetically.
         // It won't change the text on the screen, only what the robot reads.
-        
-        cleaned = cleaned.replace(/έπαυον/g, 'έπαβον'); // Fixes the stress on ἔπαυον
-        // cleaned = cleaned.replace(/anotherWord/g, 'phoneticSpelling'); 
+        // cleaned = cleaned.replace(/anotherWord/g, 'phoneticSpelling');
+
+        // 1. Fix the ὦ issue by swapping a standalone ω for an omicron (ο)
+        cleaned = cleaned.replace(/(^|[\s,;:'"(\[·-])[ωώ](?=[\s,;:.!?"'\)\]·-]|$)/g, '$1ο');
+        // 2. Fixes the stress on ἔπαυον
+        cleaned = cleaned.replace(/έπαυον/g, 'έπαβον'); 
 
         return cleaned;
     }
